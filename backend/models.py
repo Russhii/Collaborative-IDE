@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy import Column, Integer, String, ForeignKey,UniqueConstraint
 from database import Base
 
 
@@ -21,13 +21,33 @@ class Project(Base):
 
 
 class ProjectMember(Base):
+
     __tablename__ = "project_members"
 
     id = Column(Integer, primary_key=True, index=True)
-    project_id = Column(Integer, ForeignKey("projects.id"))
-    user_id = Column(Integer, ForeignKey("users.id"))
-    role = Column(String, default="developer")
 
+    project_id = Column(
+        Integer,
+        ForeignKey("projects.id")
+    )
+
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id")
+    )
+
+    role = Column(
+        String,
+        default="developer"
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "project_id",
+            "user_id",
+            name="uq_project_member"
+        ),
+    )
 
 class ProjectFile(Base):
     __tablename__ = "project_files"

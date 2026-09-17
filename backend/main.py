@@ -122,14 +122,16 @@ class ConnectionManager:
             []
         )
 
-        self.active_connections[project_id] = [
+        remaining_connections = [
             connection
             for connection in connections
             if connection["websocket"] != websocket
         ]
 
-        if not self.active_connections[project_id]:
-            del self.active_connections[project_id]
+        if remaining_connections:
+            self.active_connections[project_id] = remaining_connections
+        else:
+            self.active_connections.pop(project_id, None)
 
     def get_online_users(self, project_id: int):
 
@@ -148,12 +150,34 @@ class ConnectionManager:
         project_id: int,
         message: str
     ):
-        for connection in self.active_connections.get(
+        connections = self.active_connections.get(
             project_id,
             []
-        ):
-            await connection["websocket"].send_text(
-                message
+        )
+
+        dead_connections = []
+
+        for connection in connections.copy():
+
+            websocket = connection["websocket"]
+
+            try:
+                await websocket.send_text(message)
+
+            except Exception as e:
+
+                print(
+                    f"Removing dead WebSocket "
+                    f"for user {connection['user_id']}: {e}"
+                )
+
+                dead_connections.append(websocket)
+
+        for websocket in dead_connections:
+
+            self.disconnect(
+                project_id,
+                websocket
             )
 
 
@@ -171,7 +195,11 @@ def home():
         "message": "Hello"
     }
 
-
+@app.get("/health")
+def health_check():
+    return {
+        "status": "healthy"
+    }
 # ---------------------------------------------------------
 # REGISTER USER
 # ---------------------------------------------------------
@@ -346,15 +374,24 @@ def get_all(
     current_user: dict = Depends(verify_token)
 ):
     """
-    Returns all projects stored in the database.
+    Returns projects that the current user owns
+    or is a member of.
     """
-    projects = db.query(models.Project).all()
+
+    user_id = current_user["user_id"]
+
+    projects = db.query(models.Project).outerjoin(
+        models.ProjectMember,
+        models.ProjectMember.project_id == models.Project.id
+    ).filter(
+        (models.Project.owner_id == user_id) |
+        (models.ProjectMember.user_id == user_id)
+    ).distinct().all()
 
     return {
-        "message": "All Projects",
+        "message": "User Projects",
         "data": projects
     }
-
 
 # ---------------------------------------------------------
 # GET ONE PROJECT
@@ -386,11 +423,15 @@ def get_project(
 def update_project(
     project_id: int,
     project: Project,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(verify_token)
 ):
     """
     Updates the name and description of an existing project.
+
+    Only the project owner can update the project.
     """
+
     old_project = db.query(models.Project).filter(
         models.Project.id == project_id
     ).first()
@@ -398,7 +439,13 @@ def update_project(
     if not old_project:
         raise HTTPException(
             status_code=404,
-            detail="Not found"
+            detail="Project not found"
+        )
+
+    if old_project.owner_id != current_user["user_id"]:
+        raise HTTPException(
+            status_code=403,
+            detail="Only project owner can update the project"
         )
 
     old_project.name = project.name
@@ -411,8 +458,6 @@ def update_project(
         "message": "Project updated successfully",
         "data": old_project
     }
-
-
 # ---------------------------------------------------------
 # DELETE PROJECT
 # ---------------------------------------------------------
@@ -420,11 +465,15 @@ def update_project(
 @app.delete("/projects/{project_id}")
 def delete_project(
     project_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(verify_token)
 ):
     """
     Deletes an existing project.
+
+    Only the project owner can delete the project.
     """
+
     old_project = db.query(models.Project).filter(
         models.Project.id == project_id
     ).first()
@@ -432,7 +481,13 @@ def delete_project(
     if not old_project:
         raise HTTPException(
             status_code=404,
-            detail="Not found"
+            detail="Project not found"
+        )
+
+    if old_project.owner_id != current_user["user_id"]:
+        raise HTTPException(
+            status_code=403,
+            detail="Only project owner can delete the project"
         )
 
     db.delete(old_project)
@@ -441,8 +496,6 @@ def delete_project(
     return {
         "message": "Project deleted successfully"
     }
-
-
 # ---------------------------------------------------------
 # ADD MEMBER TO PROJECT
 # ---------------------------------------------------------
