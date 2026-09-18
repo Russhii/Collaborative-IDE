@@ -8,6 +8,26 @@ A full-stack real-time collaborative code editor where multiple users can work o
 
 > Replace `15.206.174.7` with your current AWS EC2 public IP.
 
+## Screenshots
+
+### 1. Login
+![Login](screenshots/login.png)
+
+### 2. Project Dashboard
+![Dashboard](screenshots/dashboard.png)
+
+### 3. Collaborative Code Editor
+![Editor](screenshots/editor.png)
+
+### 4. Real-Time Collaboration
+![Real-Time Collaboration](screenshots/collaboration.png)
+
+### 5. AWS Deployment
+![AWS Deployment1](screenshots/aws-DB.png)
+
+### 5. AWS Deployment
+![AWS Deployment2](screenshots/aws-EC2.png)
+
 
 
 ## ✨ Features
