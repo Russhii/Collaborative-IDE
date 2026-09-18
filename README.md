@@ -1,115 +1,123 @@
 # Collaborative IDE
 
-A full-stack real-time collaborative development environment where multiple users can work on the same project files simultaneously.
+A full-stack real-time collaborative code editor where multiple users can work on the same project and edit files together.
 
-The application combines **React, Monaco Editor, FastAPI, PostgreSQL, WebSockets, and Yjs CRDTs** to provide real-time code collaboration with authentication, project management, file management, remote cursors, and conflict handling.
+## 🚀 Live Demo
 
-## Features
+**Live Application:** `http://15.206.174.7/`
 
-- User registration and JWT-based authentication
+> Replace `15.206.174.7` with your current AWS EC2 public IP.
+
+
+
+## ✨ Features
+
+- JWT authentication
 - Project creation and management
-- Project members with roles
-- Integrated file explorer
-- Monaco Editor for code editing
+- Project members and access control
+- File explorer with create, update and delete operations
+- Monaco Editor
 - Real-time collaboration using WebSockets
-- Yjs CRDT-based document synchronization
-- Online collaborator presence
-- Remote cursor tracking
-- File version and conflict handling
-- PostgreSQL database
+- Yjs-based CRDT synchronization
+- Real-time collaborator cursors
+- Online collaborator tracking
+- File version/conflict handling
 - Dockerized frontend and backend
 - Nginx reverse proxy
-- AWS-ready deployment with EC2 and RDS PostgreSQL
+- AWS EC2 deployment
+- PostgreSQL on AWS RDS
 
-## Architecture
+---
+
+## 🏗️ Architecture
 
 ```text
                          Internet
-                            |
-                            v
-                    +----------------+
-                    | Nginx :80      |
-                    | React Frontend |
-                    +-------+--------+
-                            |
-                  +---------+---------+
-                  |                   |
-                HTTP              WebSocket
-                /api                  /ws
-                  |                   |
-                  +---------+---------+
-                            |
-                            v
-                    +----------------+
-                    | FastAPI        |
-                    | Backend        |
-                    +-------+--------+
-                            |
-                            v
-                    +----------------+
-                    | PostgreSQL     |
-                    +----------------+
+                            │
+                            ▼
+                    ┌────────────────┐
+                    │    AWS EC2     │
+                    │    Port 80     │
+                    └───────┬────────┘
+                            │
+                            ▼
+                       ┌─────────┐
+                       │  Nginx  │
+                       └────┬────┘
+                            │
+              ┌─────────────┴─────────────┐
+              │                           │
+              ▼                           ▼
+       React Frontend              FastAPI Backend
+       Monaco Editor               REST API + WebSocket
+                                          │
+                                          ▼
+                                   ┌──────────────┐
+                                   │ AWS RDS      │
+                                   │ PostgreSQL   │
+                                   └──────────────┘
 ```
 
-### Real-Time Collaboration
+## 🔄 Real-Time Collaboration
+
+The editor uses WebSockets and Yjs to synchronize changes between connected users.
 
 ```text
-User A                         User B
-  |                              |
-  v                              v
-Monaco Editor                Monaco Editor
-  |                              |
-  v                              v
-Yjs CRDT                     Yjs CRDT
-  |                              |
-  +---------- WebSocket ---------+
-                 |
-                 v
-              FastAPI
+User A
+  │
+  │ edit
+  ▼
+Monaco Editor
+  │
+  ▼
+Yjs / WebSocket
+  │
+  ├──────────────► User B
+  │
+  └──────────────► User C
 ```
 
-Yjs maintains collaborative document state on the clients, while WebSockets provide the real-time communication channel with the FastAPI backend.
+---
 
-## Tech Stack
+## 🛠️ Tech Stack
 
 ### Frontend
-
 - React
 - Vite
 - Monaco Editor
 - Yjs
-- Tailwind CSS
+- y-monaco
 
 ### Backend
-
 - Python
 - FastAPI
+- Uvicorn
 - SQLAlchemy
 - PostgreSQL
-- JWT authentication
+- JWT Authentication
 - WebSockets
-- Pydantic
 
-### Infrastructure
-
+### DevOps / Deployment
 - Docker
 - Docker Compose
 - Nginx
 - AWS EC2
-- AWS RDS PostgreSQL
+- AWS RDS
 
-## Project Structure
+---
+
+## 📂 Project Structure
 
 ```text
 Collaborative-IDE/
-|
+│
 ├── backend/
 │   ├── auth.py
 │   ├── database.py
 │   ├── main.py
 │   ├── models.py
 │   └── schemas.py
-|
+│
 ├── frontend/
 │   ├── src/
 │   │   ├── app/
@@ -117,16 +125,17 @@ Collaborative-IDE/
 │   │   │   ├── Auth.jsx
 │   │   │   ├── Projects.jsx
 │   │   │   └── Editor.jsx
-│   │   │
 │   │   ├── lib/
 │   │   │   ├── api.js
 │   │   │   └── diff.js
-│   │   │
 │   │   └── main.jsx
-│   │
 │   ├── package.json
 │   └── vite.config.js
-|
+│
+├── docs/
+│   ├── screenshots/
+│   └── demo.gif
+│
 ├── Dockerfile.backend
 ├── Dockerfile.frontend
 ├── docker-compose.yml
@@ -137,7 +146,26 @@ Collaborative-IDE/
 └── README.md
 ```
 
-## Backend API
+---
+
+## 🔐 Authentication & Authorization
+
+The backend provides JWT-based authentication.
+
+Users can:
+
+- Register
+- Login
+- Access their profile
+- Create projects
+- Access projects they own or are members of
+- Manage project files according to their permissions
+
+Project-level access checks are performed by the backend before protected operations.
+
+---
+
+## 🔌 API
 
 ### Authentication
 
@@ -157,21 +185,21 @@ PUT    /projects/{project_id}
 DELETE /projects/{project_id}
 ```
 
-### Project Members
+### Members
 
 ```text
 POST /projects/{project_id}/members
 GET  /projects/{project_id}/members
 ```
 
-### Project Files
+### Files
 
 ```text
 POST   /projects/{project_id}/files
 GET    /projects/{project_id}/files
-GET    /projects/{project_id}/files/{file_id}
-PUT    /projects/{project_id}/files/{file_id}
-DELETE /projects/{project_id}/files/{file_id}
+GET    /files/{file_id}
+PUT    /files/{file_id}
+DELETE /files/{file_id}
 ```
 
 ### WebSocket
@@ -180,113 +208,31 @@ DELETE /projects/{project_id}/files/{file_id}
 /ws/projects/{project_id}
 ```
 
-The WebSocket endpoint handles collaboration events such as online users, user join/leave events, cursor movement, file updates, version conflicts, and errors.
+---
 
-## Authentication
+## 🐳 Run Locally with Docker
 
-The application uses JWT-based authentication.
-
-```text
-Register
-   |
-   v
-Login
-   |
-   v
-JWT Access Token
-   |
-   v
-Authenticated API Requests
-   |
-   v
-Project/File Access
-```
-
-Project access is checked for protected project and file operations.
-
-## CRDT Collaboration
-
-The editor uses **Yjs** to maintain a shared collaborative document.
-
-The collaboration flow is:
-
-```text
-Editor Change
-     |
-     v
-Yjs Document
-     |
-     v
-WebSocket
-     |
-     v
-FastAPI
-     |
-     v
-Other Connected Clients
-     |
-     v
-Yjs Document
-     |
-     v
-Monaco Editor
-```
-
-This allows multiple users to edit the same document in real time.
-
-## WebSocket Collaboration
-
-WebSockets provide a persistent communication channel between the browser and FastAPI.
-
-The backend manages connections per project and communicates collaboration events to connected users.
-
-The application tracks:
-
-- Connected collaborators
-- Cursor positions
-- File changes
-- File versions
-- Disconnected clients
-
-Nginx is configured to forward WebSocket upgrade requests to FastAPI.
-
-## Docker
-
-The application can be run locally using Docker Compose.
-
-```text
-Frontend
-   |
-   v
-Nginx
-   |
-   v
-FastAPI
-   |
-   v
-PostgreSQL
-```
-
-### Run locally
-
-Clone the repository:
+### 1. Clone
 
 ```bash
 git clone https://github.com/Russhii/Collaborative-IDE.git
 cd Collaborative-IDE
 ```
 
-Create a `.env` file in the project root:
+### 2. Create `.env`
+
+Create `.env` in the project root:
 
 ```env
-DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@db:5432/IDE
-SECRET_KEY=YOUR_SECRET_KEY
+DATABASE_URL=your_database_url
+SECRET_KEY=your_secret_key
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
-POSTGRES_PASSWORD=YOUR_PASSWORD
 ```
 
-Start the application:
+**Never commit `.env` or real secrets to GitHub.**
+
+### 3. Build and start
 
 ```bash
 docker compose up --build
@@ -298,56 +244,64 @@ Open:
 http://localhost
 ```
 
-Stop the application:
+---
 
-```bash
-docker compose down
-```
+## ☁️ AWS Deployment
 
-To remove the PostgreSQL Docker volume and its stored data:
-
-```bash
-docker compose down -v
-```
-
-> Never commit `.env` or other files containing secrets to GitHub.
-
-## AWS Deployment
-
-The application is prepared for AWS deployment using EC2 and RDS PostgreSQL.
+The application is deployed using:
 
 ```text
-                         Internet
-                            |
-                            v
-                    +----------------+
-                    | AWS EC2        |
-                    |                |
-                    | Docker         |
-                    | |- Nginx       |
-                    | `- FastAPI     |
-                    +-------+--------+
-                            |
-                       Private VPC
-                            |
-                            v
-                    +----------------+
-                    | AWS RDS        |
-                    | PostgreSQL     |
-                    +----------------+
+AWS EC2
+   │
+   ├── Docker
+   │    ├── React + Nginx container
+   │    └── FastAPI container
+   │
+   └── AWS RDS PostgreSQL
 ```
 
-### AWS Components
+### EC2
 
-- **EC2** runs the Dockerized application.
-- **Nginx** serves the React frontend and proxies API/WebSocket traffic.
-- **FastAPI** provides the backend and WebSocket server.
-- **RDS PostgreSQL** provides persistent database storage.
-- RDS is configured for private access from the EC2 environment.
+Runs the Dockerized application.
 
-## Environment Variables
+### RDS
 
-The backend expects:
+Hosts the PostgreSQL database separately from the application server.
+
+### Nginx
+
+Serves the React production build and proxies:
+
+```text
+/api/*  → FastAPI
+/ws/*   → FastAPI WebSocket
+```
+
+---
+
+## 🧠 Technical Highlights
+
+### WebSockets
+Persistent communication for real-time collaboration.
+
+### Yjs / CRDT
+Synchronizes editor state and supports concurrent editing.
+
+### Monaco Editor
+Provides the browser-based code editor.
+
+### Docker
+Frontend and backend are packaged as separate containers.
+
+### Nginx
+Acts as the reverse proxy and serves the production React build.
+
+### AWS RDS
+Provides managed PostgreSQL storage for the backend.
+
+---
+
+## 🔒 Environment Variables
 
 ```env
 DATABASE_URL=
@@ -356,91 +310,24 @@ ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 ```
 
-For local Docker Compose with the PostgreSQL container:
+Never commit database passwords, JWT secrets, API keys, or private keys.
 
-```env
-DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@db:5432/IDE
-POSTGRES_PASSWORD=YOUR_PASSWORD
-```
+---
 
-For AWS with RDS:
+## 📌 Future Improvements
 
-```env
-DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@YOUR_RDS_ENDPOINT:5432/IDE
-```
-
-Keep all credentials private.
-
-## Development Without Docker
-
-### Backend
-
-Create a virtual environment:
-
-```bash
-python -m venv venv
-```
-
-Windows:
-
-```bash
-venv\Scripts\activate
-```
-
-Install dependencies:
-
-```bash
-pip install -r requirements.txt
-```
-
-Start FastAPI:
-
-```bash
-uvicorn backend.main:app --reload
-```
-
-Depending on the project's import configuration, the backend can also be started from the `backend` directory:
-
-```bash
-uvicorn main:app --reload
-```
-
-### Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-## Security Considerations
-
-- Secrets are stored in environment variables.
-- `.env` is excluded from Git.
-- Project ownership and membership are checked by the backend.
-- RDS should not be publicly exposed.
-- Production deployments should use HTTPS.
-- Use strong JWT secrets and database passwords.
-- Production deployments should use appropriate backups and monitoring.
-
-## Future Improvements
-
-- Git repository integration
-- Branch and commit management
-- Pull request workflow
-- AI-powered code assistance
-- Codebase/RAG intelligence
-- Project-level AI memory
-- Code execution sandbox
-- Language service integration
-- Redis-based collaboration scaling
-- Horizontal backend scaling
-- CI/CD pipeline
 - HTTPS with a custom domain
-- Automated testing
-- Production observability and monitoring
+- GitHub Actions CI/CD
+- Production logging and monitoring
+- Automated database migrations
+- More programming language support
+- Code execution sandbox
+- Terminal integration
+- Redis for scalable WebSocket coordination
 
-## Author
+---
+
+## 👨‍💻 Author
 
 **Rushikesh Parit**
 
